@@ -25,7 +25,7 @@ string extract_info(const string& request, const string to_find, const string un
   return url;
 }
 
-void handleClient (int client) {
+void handleClient (int client, int argc, char** argv) {
 
   char receivebuf[1024];
   int receivedbytes = recv(client, receivebuf, sizeof(receivebuf) - 1, 0);
@@ -54,6 +54,11 @@ void handleClient (int client) {
   }
   else if (url.starts_with("/files")) {
     string file = url.substr(7, url.length());
+    if (argc >= 3) {
+      if (string(argv[1]) == "--directory") {
+        file = argv[2] + file;
+      }
+    }
     ifstream myfile(file);
     if (myfile.is_open()) {
       ostringstream oss;
@@ -82,9 +87,6 @@ int main(int argc, char **argv) {
   std::cout << std::unitbuf;
   std::cerr << std::unitbuf;
   
-
-  // Uncomment this block to pass the first stage
-  //
   int server_fd = socket(AF_INET, SOCK_STREAM, 0);
   if (server_fd < 0) {
    std::cerr << "Failed to create server socket\n";
@@ -123,7 +125,7 @@ int main(int argc, char **argv) {
     
     int client = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
     std::cout << "Client connected\n";
-    std::thread client_thread(handleClient, client);
+    std::thread client_thread(handleClient, client, argc, argv);
     client_thread.detach();
   }
 
