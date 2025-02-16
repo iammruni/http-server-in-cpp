@@ -54,7 +54,6 @@ void handleClient (int client) {
     reply = "HTTP/1.1 404 Not Found\r\n\r\n";
   }
   send(client, reply.c_str(), reply.length(), 0);
-  std::cout << "Client connected\n";
 
   close(client);
 
@@ -105,9 +104,9 @@ int main(int argc, char **argv) {
     std::cout << "Waiting for a client to connect...\n";
     
     int client = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
-
+    std::cout << "Client connected\n";
     std::thread client_thread(handleClient, client);
-    client_thread.join();
+    client_thread.detach();
   }
 
   close(server_fd);
