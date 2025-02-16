@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <thread>
 using namespace std;
 
 string extract_info(const string& request, const string to_find, const string until) {
@@ -20,6 +21,43 @@ string extract_info(const string& request, const string to_find, const string un
   string url = request.substr(start_pos, end_pos - start_pos);
   
   return url;
+}
+
+void handleClient (int client) {
+
+  char receivebuf[1024];
+  int receivedbytes = recv(client, receivebuf, sizeof(receivebuf) - 1, 0);
+  receivebuf[receivedbytes] = '\0';
+  string request(receivebuf);
+
+  string url = extract_info(receivebuf, "GET ", " ");
+  string usr_agent = extract_info(receivebuf, "User-Agent: ", "\r\n");
+  string reply = "";
+
+  if (url == "/") {
+    reply = "HTTP/1.1 200 OK\r\n\r\n";
+  }
+  else if (url.starts_with("/user-agent")) {
+    reply = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " 
+                   + std::to_string(usr_agent.length()) 
+                   + "\r\n\r\n" 
+                   + usr_agent;
+  }
+  else if (url.starts_with("/echo")) {
+    string echocontent = url.substr(6, url.length());
+    reply = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " 
+                   + std::to_string(echocontent.length()) 
+                   + "\r\n\r\n" 
+                   + echocontent;
+  }
+  else {
+    reply = "HTTP/1.1 404 Not Found\r\n\r\n";
+  }
+  send(client, reply.c_str(), reply.length(), 0);
+  std::cout << "Client connected\n";
+
+  close(client);
+
 }
 
 int main(int argc, char **argv) {
@@ -60,45 +98,18 @@ int main(int argc, char **argv) {
     return 1;
   }
   
-  struct sockaddr_in client_addr;
-  int client_addr_len = sizeof(client_addr);
-  
-  std::cout << "Waiting for a client to connect...\n";
-  
-  int client = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
+  while(1) {
+    struct sockaddr_in client_addr;
+    int client_addr_len = sizeof(client_addr);
+    
+    std::cout << "Waiting for a client to connect...\n";
+    
+    int client = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
 
-  char receivebuf[1024];
-  int receivedbytes = recv(client, receivebuf, sizeof(receivebuf) - 1, 0);
-  receivebuf[receivedbytes] = '\0';
-  string request(receivebuf);
-
-  string url = extract_info(receivebuf, "GET ", " ");
-  string usr_agent = extract_info(receivebuf, "User-Agent: ", "\r\n");
-  string reply = "";
-
-  if (url == "/") {
-    reply = "HTTP/1.1 200 OK\r\n\r\n";
+    std::thread client_thread(handleClient, client);
+    client_thread.join();
   }
-  else if (url.starts_with("/user-agent")) {
-    reply = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " 
-                   + std::to_string(usr_agent.length()) 
-                   + "\r\n\r\n" 
-                   + usr_agent;
-  }
-  else if (url.starts_with("/echo")) {
-    string echocontent = url.substr(6, url.length());
-    reply = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " 
-                   + std::to_string(echocontent.length()) 
-                   + "\r\n\r\n" 
-                   + echocontent;
-  }
-  else {
-    reply = "HTTP/1.1 404 Not Found\r\n\r\n";
-  }
-  send(client, reply.c_str(), reply.length(), 0);
-  std::cout << "Client connected\n";
 
   close(server_fd);
-
   return 0;
 }
