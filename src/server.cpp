@@ -9,12 +9,12 @@
 #include <netdb.h>
 using namespace std;
 
-string extract_url(const string& request) {
+string extract_info(const string& request, const string to_find, const string until) {
   // Find the position of the first space after GET
-  size_t start_pos = request.find("GET ") + 4;  // +4 to skip over "GET "
+  size_t start_pos = request.find(to_find) + to_find.length();  // +4 to skip over "GET "
   
   // Find the position of the next space after the URL
-  size_t end_pos = request.find(" ", start_pos);
+  size_t end_pos = request.find(until, start_pos);
   
   // Extract the URL (substring between the two spaces)
   string url = request.substr(start_pos, end_pos - start_pos);
@@ -72,11 +72,18 @@ int main(int argc, char **argv) {
   receivebuf[receivedbytes] = '\0';
   string request(receivebuf);
 
-  string url = extract_url(receivebuf);
+  string url = extract_info(receivebuf, "GET ", " ");
+  string usr_agent = extract_info(receivebuf, "User-Agent: ", "\r\n");
   string reply = "";
 
   if (url == "/") {
     reply = "HTTP/1.1 200 OK\r\n\r\n";
+  }
+  else if (url.starts_with("/user-agent")) {
+    reply = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " 
+                   + std::to_string(usr_agent.length()) 
+                   + "\r\n\r\n" 
+                   + usr_agent;
   }
   else if (url.starts_with("/echo")) {
     string echocontent = url.substr(6, url.length());
