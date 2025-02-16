@@ -7,6 +7,20 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+using namespace std;
+
+string extract_url(const string& request) {
+  // Find the position of the first space after GET
+  size_t start_pos = request.find("GET ") + 4;  // +4 to skip over "GET "
+  
+  // Find the position of the next space after the URL
+  size_t end_pos = request.find(" ", start_pos);
+  
+  // Extract the URL (substring between the two spaces)
+  string url = request.substr(start_pos, end_pos - start_pos);
+  
+  return url;
+}
 
 int main(int argc, char **argv) {
   // Flush after every std::cout / std::cerr
@@ -51,9 +65,32 @@ int main(int argc, char **argv) {
   
   std::cout << "Waiting for a client to connect...\n";
   
-  accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
+  int client = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
+
+  char receivebuf[1024];
+  int receivedbytes = recv(client, receivebuf, sizeof(receivebuf) - 1, 0);
+  receivebuf[receivedbytes] = '\0';
+  string request(receivebuf);
+
+  string url = extract_url(receivebuf);
+  string reply = "";
+
+  if (url == "/") {
+    reply = "HTTP/1.1 200 OK\r\n\r\n";
+  }
+  else if (url.starts_with("/echo")) {
+    string echocontent = url.substr(6, url.length());
+    reply = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " 
+                   + std::to_string(echocontent.length()) 
+                   + "\r\n\r\n" 
+                   + echocontent;
+  }
+  else {
+    reply = "HTTP/1.1 404 Not Found\r\n\r\n";
+  }
+  send(client, reply.c_str(), reply.length(), 0);
   std::cout << "Client connected\n";
-  
+
   close(server_fd);
 
   return 0;
