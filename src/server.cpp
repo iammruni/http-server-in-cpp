@@ -9,6 +9,7 @@
 #include <netdb.h>
 #include <thread>
 #include <fstream>
+#include <sstream>
 using namespace std;
 
 string extract_info(const string& request, const string to_find, const string until) {
