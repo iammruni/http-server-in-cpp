@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <thread>
+#include <fstream>
 using namespace std;
 
 string extract_info(const string& request, const string to_find, const string until) {
@@ -49,6 +50,22 @@ void handleClient (int client) {
                    + std::to_string(echocontent.length()) 
                    + "\r\n\r\n" 
                    + echocontent;
+  }
+  else if (url.starts_with("/files")) {
+    string file = url.substr(7, url.length());
+    ifstream myfile(file);
+    if (myfile.is_open()) {
+      ostringstream oss;
+      oss << myfile.rdbuf();
+      string content;
+      content = oss.str();
+      reply = "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: " 
+                   + std::to_string(content.length()) 
+                   + "\r\n\r\n" 
+                   + content;
+    } else {
+      reply = "HTTP/1.1 404 Not Found\r\n\r\n";
+    }
   }
   else {
     reply = "HTTP/1.1 404 Not Found\r\n\r\n";
